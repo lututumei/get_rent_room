@@ -6,6 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import csv
 import time
@@ -85,27 +86,30 @@ def analyze_home_html_file(content):
         print(titile, address, price, link)
         room_list.append([titile, address, price, link])
 
-def wait_room_address_display(try_count):
+def wait_room_address_display(url, try_count):
     global driver
     try_count = try_count + 1
     try:
         element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "room-address")))
     except exceptions.TimeoutException:
         try:
-            driver.findElement(By.xpath("//*[text()='已下架或不存在']"))
+            driver.find_element(By.XPATH, "//*[text()='已下架或不存在']")
         except exceptions.NoSuchElementException:
             if(try_count < 3):
                 print("刷新页面")
                 time.sleep(2)
                 driver.refresh()
-                return wait_room_address_display(try_count)
+                return wait_room_address_display(url, try_count)
             else:
                 print("重启浏览器")
                 driver.close()
                 time.sleep(5)
                 driver = webdriver.Chrome(executable_path="E:\Download\python\chromedriver_win32\chromedriver.exe")
-                driver.get(url)
-                return wait_room_address_display(try_count)
+                try:
+                    driver.get(url)
+                except exceptions.NoSuchElementException:
+                    driver.refresh()
+                return wait_room_address_display(url, try_count)
         else:
             print("不存在")
             return "不存在"
@@ -122,8 +126,11 @@ def wait_room_address_display(try_count):
 def get_detail_address(url):
     print(url)
     global driver
-    driver.get(url)
-    return wait_room_address_display(0)
+    try:
+        driver.get(url)
+    except exceptions.NoSuchElementException:
+        driver.refresh()
+    return wait_room_address_display(url, 0)
 
 if __name__ == "__main__":
     start_time = time.time() # 开始时间
