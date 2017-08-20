@@ -22,6 +22,7 @@ filter_address_list = ["12号线金海路", "12号线申江路", "12号线金京
 "2号线广兰路", "2号线唐镇", "2号线创新中路", "2号线华夏东路", "2号线川沙",
 "7号线花木路", "7号线龙阳路", "7号线芳华路", "7号线锦绣路", "7号线杨高南路", "7号线高科西路", "7号线云台路", "7号线耀华路", "7号线长清路", "7号线后滩",
 "11号线御桥", "11号线浦三路", "11号线三林东", "11号线三林"]
+selected_house_num = 0
 house_num = 0
 room_list = []
 file_name = time.strftime("%Y-%m-%d", time.localtime()) + ".csv"
@@ -38,7 +39,8 @@ def scroll_to_buttom(times):
 
 def get_rent_house_modified_since_(modified_days):
     while(1):
-        time_hints = driver.find_elements_by_css_selector(".room-time.hint")
+        time_hints = driver.find_elements_by_css_selector('.room-time.hint')
+        #print(time_hints)
         print(time_hints[-1].text)
         if(modified_days == 1):
             if(time_hints[-1].text[:2] == "昨天"):
@@ -52,6 +54,8 @@ def analyze_home_html_file(content):
     soup=BeautifulSoup(content,'lxml')
     house_list = soup.select(".search-list")
     for house in house_list[0].children:
+    	global house_num
+    	house_num = house_num + 1
 
         link = "http://www.zuber.im"+house["href"]
 
@@ -70,8 +74,8 @@ def analyze_home_html_file(content):
         if(not record_this_info):
             continue
 
-        global house_num 
-        house_num = house_num + 1
+        global selected_house_num 
+        selected_house_num = selected_house_num + 1
         #rent_type = "".join(base_info.select(".room-base-info-item")[0].select("span")[0].stripped_strings)
         #rent_time = "".join(base_info.select(".room-base-info-item")[0].select("span")[2].stripped_strings)
         price = "".join(extra_info.select(".room-price")[0].stripped_strings)
@@ -93,23 +97,26 @@ def wait_room_address_display(url, try_count):
         element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "room-address")))
     except exceptions.TimeoutException:
         try:
-            driver.find_element(By.XPATH, "//*[text()='已下架或不存在']")
+            driver.find_element(By.XPATH, "//*[text()='你查看的租房信息已下架或不存在']")
         except exceptions.NoSuchElementException:
             if(try_count < 3):
                 print("刷新页面")
                 time.sleep(2)
                 driver.refresh()
                 return wait_room_address_display(url, try_count)
-            else:
+            elif(try_count < 5):
                 print("重启浏览器")
                 driver.close()
                 time.sleep(5)
                 driver = webdriver.Chrome(executable_path="E:\Download\python\chromedriver_win32\chromedriver.exe")
                 try:
                     driver.get(url)
-                except exceptions.NoSuchElementException:
+                except exceptions.TimeoutException:
                     driver.refresh()
                 return wait_room_address_display(url, try_count)
+            else:
+                print("不存在")
+                return "不存在"
         else:
             print("不存在")
             return "不存在"
@@ -128,7 +135,7 @@ def get_detail_address(url):
     global driver
     try:
         driver.get(url)
-    except exceptions.NoSuchElementException:
+    except exceptions.TimeoutException:
         driver.refresh()
     return wait_room_address_display(url, 0)
 
@@ -149,7 +156,8 @@ if __name__ == "__main__":
 
     analyze_home_html_file(html_content)
     index = 0
-    print("共 %d 个房源" %(house_num))
+    print("共 %d 房源" %(house_num))
+    print("共筛选出 %d 个房源" %(selected_house_num))
     for room in room_list:
         index = index + 1
         print("分析第 %d 个房源" %(index))
@@ -159,4 +167,4 @@ if __name__ == "__main__":
             csv_writer.writerow(room)
     csv_file.close()
     end_time = time.time() #结束时间
-    print(" 程序耗时%f秒.共抓取到%d个房源" % ((end_time - start_time), house_num))
+    print(" 程序耗时%f秒.共抓取到%d个房源" % ((end_time - start_time), selected_house_num))
